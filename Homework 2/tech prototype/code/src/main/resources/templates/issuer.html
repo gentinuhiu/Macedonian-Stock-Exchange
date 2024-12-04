@@ -1,0 +1,326 @@
+<style>
+    .stock-table table {
+        border-collapse: separate; /* Ensure border-spacing works */
+        border-spacing: 4px; /* Adjust the spacing as needed */
+        width: 100%;
+        border: 0.5px solid #ddd; /* Optional: Add a border around the table */
+    }
+
+    .stock-table table th,
+    .stock-table table td {
+        padding: 4px 5px; /* Adjust padding inside cells */
+        text-align: center; /* Center align text */
+    }
+
+    .stock-table table th {
+        background-color: #343a40;
+        color: #fff;
+        font-size: 1rem;
+    }
+
+    .stock-table table tbody tr:nth-child(odd) {
+        background-color: #f2f2f2;
+    }
+
+    .stock-table table tbody tr:hover {
+        background-color: #e9ecef;
+    }
+
+    .stock-table table tbody .trend.up {
+        color: green;
+    }
+
+    .stock-table table tbody .trend.down {
+        color: red;
+    }
+    .pagination {
+        display: flex;
+        justify-content: center;
+        list-style: none;
+        padding: 0;
+        margin: 20px 0;
+    }
+
+    .pagination li {
+        margin: 0 5px;
+    }
+
+    .pagination a, .searchButton {
+        padding: 5px 10px;
+        color: #005fa6;
+        text-decoration: none;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+    }
+    .pagination a{
+        display: block;
+    }
+    .searchButton{
+        background-color: #f8f9fa;
+    }
+    .pagination .active a {
+        background-color: #005fa6;
+        color: white;
+        border-color: #005fa6;
+    }
+
+    .pagination a:hover, .searchButton:hover {
+        background-color: #f0f0f0;
+    }
+
+    #issuerTable{
+        display: grid;
+        grid-template-columns: 60% 40%;
+    }
+    #charts{
+        height: 100%;
+        display: grid;
+        grid-auto-rows: 50% 50%;
+    }
+    canvas{
+        height:100% !important;
+    }
+    #timePeriodSelector{
+        width: fit-content;
+        height: fit-content;
+        margin: 0 auto;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    .selectInput{
+        height: 27px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+    }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
+
+<div id="issuerTable">
+<section class="stock-table">
+    <h2><span th:text="${issuer}"></span> Stock Predictions</h2>
+
+    <form action="/search" method="post">
+        <label for="issuer">Select Issuer:</label>
+        <select name="issuer" id="issuer" class="selectInput">
+            <!-- Populate options dynamically -->
+            <option th:each="issuerObj : ${issuers}"
+                    th:value="${issuerObj.id}"
+                    th:text="${issuerObj.name}"
+                    th:selected="${issuerObj.name == issuer}">
+            </option>
+        </select>
+        <button type="submit" class="searchButton">Search</button>
+    </form>
+
+    <table>
+        <thead>
+        <tr>
+            <th><i>Date</i></th>
+            <th>Last trade price</th>
+            <th>Max</th>
+            <th>Min</th>
+            <th>Avg. Price</th>
+            <th><b>%change</b></th>
+            <th>Volume</th>
+            <th>Turnover in BEST in denars</th>
+            <th>Total turnover in denars</th>
+        </tr>
+        </thead>
+        <tbody id="table-body">
+        <tr th:each="row : ${issuerRows}">
+            <td th:text="${row.date}" style="font-style: italic"></td>
+            <td th:text="${row.lastTradePriceStr}"></td>
+            <td th:text="${row.maxStr}"></td>
+            <td th:text="${row.minStr}"></td>
+            <td th:text="${row.avgPriceStr}"></td>
+            <span th:if="${row.change < 0}">
+                <td th:text="${row.changeStr} + '  ↓'" style="color:red;font-weight: bold;"></td>
+            </span>
+            <span th:if="${row.change == 0}">
+                <b><td th:text="${row.changeStr}" style="color:orange;font-weight: bold;"></td></b>
+            </span>
+            <span th:if="${row.change > 0}">
+                <b><td th:text="${row.changeStr} + '  ↑'" style="color:green;font-weight: bold;"></td></b>
+            </span>
+            <td th:text="${row.volume}"></td>
+            <td th:text="${row.turnoverInBestStr}"></td>
+            <td th:text="${row.totalTurnoverStr}"></td>
+        </tr>
+        </tbody>
+
+    </table>
+    <nav aria-label="Page navigation">
+        <ul class="pagination">
+            <div th:if="${lowerBound}">
+                <li th:classappend="${lowerBound} ? 'disabled' : ''">
+                    <a th:href="@{/paginate(page=${actualPage}, timePeriod=${checkedRadio}, issuer=${issuer}, startPage=${startPage - 10}, endPage=${endPage - 10})}">
+                        <<
+                    </a>
+                </li>
+            </div>
+            <!-- Loop through pages from startPage to endPage -->
+            <li th:each="pageNumber : ${#numbers.sequence(startPage, endPage)}"
+                th:classappend="${pageNumber == actualPage} ? 'active' : ''">
+                <a th:href="@{/paginate(page=${pageNumber}, timePeriod=${checkedRadio}, issuer=${issuer}, startPage=${startPage}, endPage=${endPage})}"
+                   th:text="${pageNumber}">
+                </a>
+            </li>
+            <div th:if="${upperBound}">
+                <li th:classappend="${upperBound} ? 'disabled' : ''">
+                    <a th:href="@{/paginate(page=${actualPage}, timePeriod=${checkedRadio}, issuer=${issuer}, startPage=${startPage + 10}, endPage=${endPage + 10})}">
+                        >>
+                    </a>
+                </li>
+            </div>
+        </ul>
+    </nav>
+</section>
+    <section id="charts">
+        <canvas id="stockChart" width="800"></canvas>
+
+        <canvas id="stockChartTotal" width="800"></canvas>
+        <div id="timePeriodSelector">
+            <label>
+                <input type="radio" name="timePeriod" value="1_month" onclick="updateTimePeriod('1_month')">
+                1m
+            </label>
+            <label>
+                <input type="radio" name="timePeriod" value="6_months" onclick="updateTimePeriod('6_months')">
+                6m
+            </label>
+            <label>
+                <input type="radio" name="timePeriod" value="1_year" onclick="updateTimePeriod('1_year')">
+                1y
+            </label>
+            <label>
+                <input type="radio" name="timePeriod" value="5_years" onclick="updateTimePeriod('5_years')">
+                5y
+            </label>
+            <label>
+                <input type="radio" name="timePeriod" value="all" onclick="updateTimePeriod('all')">
+                10y
+            </label>
+        </div>
+
+    </section>
+</div>
+
+<script th:inline="javascript">
+    const dates = /*[[${datesChart}]]*/ [];
+    const avgPrices = /*[[${avgPricesChart}]]*/ [];
+
+    const periodDates = /*[[${periodDates}]]*/ [];
+    const periodAvgPrices = /*[[${periodAvgPrices}]]*/ [];
+
+    const actualPage = /*[[${actualPage}]]*/ 1;
+    const issuer = /*[[${issuer}]]*/ 'default';
+    const startPage = /*[[${startPage}]]*/ 1;
+    const endPage = /*[[${endPage}]]*/ 10;
+
+    const checkedRadio = /*[[${checkedRadio}]]*/ '1_month';
+</script>
+
+
+<script>
+
+    var radios = document.getElementsByTagName('input');
+
+    for(let i = 0; i < radios.length; i++){
+        if(radios[i].value === checkedRadio){
+            radios[i].checked = true;
+        }
+    }
+
+    // Create the chart
+    const ctx = document.getElementById('stockChart').getContext('2d');
+    const ctxTotal = document.getElementById('stockChartTotal').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dates, // X-axis labels
+            datasets: [{
+                label: 'Average Price',
+                data: avgPrices, // Y-axis data
+                borderColor: 'rgb(34,178,178)',
+                backgroundColor: 'rgba(21,204,2,0.4)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    // text: 'Stock Data Line Chart'
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Date'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Average Price'
+                    }
+                }
+            }
+        }
+    });
+    new Chart(ctxTotal, {
+        type: 'line',
+        data: {
+            labels: periodDates, // X-axis labels
+            datasets: [{
+                label: 'Average Price',
+                data: periodAvgPrices, // Y-axis data
+                borderColor: 'rgb(192,75,75)',
+                backgroundColor: 'rgba(192,75,128,0.2)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    // text: 'Stock Data Line Chart'
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Date'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Average Price'
+                    }
+                }
+            }
+        }
+    });
+
+    function updateTimePeriod(timePeriod) {
+        const url = `/graph?timePeriod=${timePeriod}&page=${actualPage}&issuer=${issuer}&startPage=${startPage}&endPage=${endPage}`;
+        console.log("Constructed URL:", url);
+
+        // Perform navigation or fetch
+        window.location.href = url;
+    }
+</script>
