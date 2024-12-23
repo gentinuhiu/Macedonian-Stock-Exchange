@@ -1,0 +1,552 @@
+<style>
+    .stock-table table {
+        border-collapse: separate;
+        border-spacing: 4px;
+        width: 100%;
+        border: 0.5px solid #ddd;
+    }
+
+    .stock-table table th,
+    .stock-table table td {
+        padding: 4px 5px;
+        text-align: center;
+    }
+
+    .stock-table table th {
+        background-color: #343a40;
+        color: #fff;
+        font-size: 1rem;
+    }
+
+    .stock-table table tbody tr:nth-child(odd) {
+        background-color: #f2f2f2;
+    }
+
+    .stock-table table tbody tr:hover {
+        background-color: #e9ecef;
+    }
+
+    .stock-table table tbody .trend.up {
+        color: green;
+    }
+
+    .stock-table table tbody .trend.down {
+        color: red;
+    }
+    .pagination {
+        display: flex;
+        justify-content: center;
+        list-style: none;
+        padding: 0;
+        margin: 20px 0;
+    }
+
+    .pagination li {
+        margin: 0 5px;
+    }
+
+    .pagination a, .searchButton {
+        padding: 5px 10px;
+        color: #005fa6;
+        text-decoration: none;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+    }
+    .pagination a{
+        display: block;
+    }
+    .searchButton{
+        background-color: #f8f9fa;
+    }
+    .pagination .active a {
+        background-color: #005fa6;
+        color: white;
+        border-color: #005fa6;
+    }
+
+    .pagination a:hover, .searchButton:hover {
+        background-color: #f0f0f0;
+    }
+
+    #issuerTable{
+        display: grid;
+        grid-template-columns: 60% 40%;
+    }
+    #charts{
+        height: 100%;
+        display: grid;
+        grid-auto-rows: 50% 50%;
+    }
+    canvas{
+        height:100% !important;
+    }
+    .timePeriodSelector{
+        width: fit-content;
+        height: fit-content;
+        margin: 0 auto;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    .selectInput{
+        height: 27px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+    }
+    #paginationNumbers{
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.4em;
+    }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
+
+<div id="issuerTable">
+<section class="stock-table">
+    <h2><span th:text="${issuer}"></span> Stock Predictions</h2>
+
+    <form action="/search" method="post">
+        <label for="issuer">Select Issuer:</label>
+        <select name="issuer" id="issuer" class="selectInput">
+            <option th:each="issuerObj : ${issuers}"
+                    th:value="${issuerObj.name}"
+                    th:text="${issuerObj.name}"
+                    th:selected="${issuerObj.name == issuer}">
+            </option>
+        </select>
+        <button type="submit" class="searchButton">Search</button>
+    </form>
+    <table>
+        <thead>
+        <tr>
+            <th><i>Date</i></th>
+            <th>Last trade price</th>
+            <th>Max</th>
+            <th>Min</th>
+            <th>Avg. Price</th>
+            <th><b>%change</b></th>
+            <th>Volume</th>
+            <th>Turnover in BEST in denars</th>
+            <th>Total turnover in denars</th>
+        </tr>
+        </thead>
+        <tbody id="table-body">
+        <tr>
+            <td colspan="9" style="text-align: center;">Loading table data...</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <nav aria-label="Page navigation">
+        <ul class="pagination">
+            <div id="lowerBound">
+                <li th:classappend="${lowerBound} ? 'disabled' : ''">
+                    <a onclick="updatePagination(startPage - 10, endPage - 10)">
+                        <<
+                    </a>
+                </li>
+            </div>
+            <div id="paginationNumbers">
+
+            </div>
+            <div id="upperBound">
+                <li th:classappend="${upperBound} ? 'disabled' : ''">
+                    <a onclick="updatePagination(startPage + 10, endPage + 10)">
+                        >>
+                    </a>
+                </li>
+            </div>
+        </ul>
+    </nav>
+</section>
+    <section id="charts">
+        <div id="loading" style="text-align: center; margin: 20px;">
+            <p>Loading charts...</p>
+        </div>
+        <canvas id="stockChart" style="display: none;"></canvas>
+        <canvas id="stockChartTotal" style="display: none;"></canvas>
+
+        <div class="timePeriodSelector">
+            <label>
+                <input type="radio" name="timePeriod" value="1_month" class="input" onclick="updateTimePeriod('1_month')">
+                1m
+            </label>
+            <label>
+                <input type="radio" name="timePeriod" value="6_months" class="input" onclick="updateTimePeriod('6_months')">
+                6m
+            </label>
+            <label>
+                <input type="radio" name="timePeriod" value="1_year" class="input" onclick="updateTimePeriod('1_year')">
+                1y
+            </label>
+            <label>
+                <input type="radio" name="timePeriod" value="5_years" class="input" onclick="updateTimePeriod('5_years')">
+                5y
+            </label>
+            <label>
+                <input type="radio" name="timePeriod" value="all" class="input" onclick="updateTimePeriod('all')">
+                10y
+            </label>
+        </div>
+    </section>
+
+    <div style="width: 80%; margin: auto;">
+        <canvas id="TAStockChart"></canvas>
+
+        <div class="timePeriodSelector">
+            <label>
+                <input type="radio" name="TATimePeriod" value="1_day" class="TAinput" onclick="updateTATimePeriod('1_day')">
+                1d
+            </label>
+            <label>
+                <input type="radio" name="TATimePeriod" value="1_week" class="TAinput" onclick="updateTATimePeriod('1_week')">
+                1w
+            </label>
+            <label>
+                <input type="radio" name="TATimePeriod" value="1_month" class="TAinput" onclick="updateTATimePeriod('1_month')">
+                1m
+            </label>
+        </div>
+    </div>
+</div>
+
+
+<script th:inline="javascript">
+    let issuer = /*[[${issuer}]]*/ 'default';
+    let checkedRadio = /*[[${checkedRadio}]]*/ '1_month';
+    let TACheckedRadio = '1_month';
+
+    let actualPage = 1;
+    let startPage = 1;
+    let endPage = 10;
+    let rowsSize = 0;
+
+    var lowerBound = document.getElementById("lowerBound");
+    var upperBound = document.getElementById("upperBound");
+
+    lowerBound.style.opacity = "0";
+    upperBound.style.opacity = "1";
+</script>
+
+<script>
+    window.addEventListener('load', () => {
+        initializePagination();
+        fixGraphRadioButtons();
+        fetchTableData(issuer, actualPage);
+        fetchStockChartData(issuer, actualPage);
+        fetchStockChartTotalData(issuer, checkedRadio, actualPage);
+        fetchTechnicalAnalysisData(issuer, TACheckedRadio);
+    });
+
+    function fixGraphRadioButtons(){
+        var radios = document.getElementsByClassName('input');
+
+        for(let i = 0; i < radios.length; i++){
+            if(radios[i].value === checkedRadio){
+                radios[i].checked = true;
+            }
+        }
+
+        var TAradios = document.getElementsByClassName('TAinput');
+        for(let i = 0; i < TAradios.length; i++){
+            if(TAradios[i].value === TACheckedRadio){
+                TAradios[i].checked = true;
+            }
+        }
+    }
+
+    function updateTATimePeriod(TACheckedRadio){
+        fetchTechnicalAnalysisData(issuer, TACheckedRadio);
+    }
+
+    function fetchTechnicalAnalysisData(issuer, TACheckedRadio){
+        const url = `/api/technical-analysis?issuer=${encodeURIComponent(issuer)}&period=${encodeURIComponent(TACheckedRadio)}`;
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                window.TACheckedRadio = TACheckedRadio;
+                updateTechnicalAnalysisChart(data.prices, data.dates, data.buy, data.sell);
+            })
+            .catch(error => {
+                console.error('Error fetching pagination data:', error);
+            });
+    }
+
+    function updateTimePeriod(period){
+        fetchStockChartTotalData(issuer, period, actualPage);
+    }
+    function initializePagination(){
+        const url = `/api/rows?issuer=${encodeURIComponent(issuer)}&page=${encodeURIComponent(actualPage)}`;
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                rowsSize = data.rowsSize;
+                updatePaginationNumbers();
+            })
+            .catch(error => {
+                console.error('Error fetching pagination data:', error);
+            });
+    }
+    function updatePagination(startPageTmp, endPageTmp){
+        startPage = startPageTmp;
+        endPage = endPageTmp;
+
+        let tmp = !(startPage == 1);
+
+        if(tmp){
+            lowerBound.style.opacity = "1";
+        }
+        else{
+            lowerBound.style.opacity = "0";
+        }
+
+        upperBound.style.opacity = "1";
+
+        if(!(endPage * 10 > rowsSize)){
+            var diff = endPage - startPage;
+            endPage += (10 - diff) - 1;
+        }
+
+        if(endPage * 10 > rowsSize){
+            endPage = startPage + (rowsSize / 10) % 10 - 1;
+            upperBound.style.opacity = "0";
+        }
+        else{
+            var diff = endPage - startPage;
+            endPage += (10 - diff) - 1;
+        }
+
+        updatePaginationNumbers();
+    }
+    function updatePaginationNumbers(){
+        var element = document.getElementById("paginationNumbers");
+        element.innerHTML = '';
+
+        for(let i = startPage; i <= endPage; i++){
+            if(i === actualPage){
+                element.innerHTML += '<a style="background-color: #dddddd;" onclick="fetchUpdatedPagination(' + i +')">' + i + '</a>';
+            }
+            else{
+                element.innerHTML += '<a onclick="fetchUpdatedPagination(' + i +')">' + i + '</a>';
+            }
+        }
+    }
+    function fetchUpdatedPagination(page){
+        actualPage = page;
+        fetchTableData(issuer, page);
+        fetchStockChartData(issuer, page);
+        updatePaginationNumbers();
+    }
+    function fetchTableData(issuer, actualPage) {
+        const url = `/api/stock-table-data?issuer=${encodeURIComponent(issuer)}&page=${encodeURIComponent(actualPage)}`;
+        const tableBody = document.getElementById('table-body');
+
+        tableBody.innerHTML = '<tr><td colspan="9" style="text-align: center;">Loading table data...</td></tr>';
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                renderTable(data.rows);
+            })
+            .catch(error => {
+                console.error('Error fetching table data:', error);
+                tableBody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: red;">Failed to load table data.</td></tr>';
+            });
+    }
+
+    function renderTable(rows) {
+        const tableBody = document.getElementById('table-body');
+        tableBody.innerHTML = '';
+
+        rows.forEach(row => {
+            let changeColor, changeSymbol;
+            if (row.change < 0) {
+                changeColor = 'red';
+                changeSymbol = '↓';
+            } else if (row.change > 0) {
+                changeColor = 'green';
+                changeSymbol = '↑';
+            } else {
+                changeColor = 'orange';
+                changeSymbol = '';
+            }
+
+            const rowHTML = `
+                <tr>
+                    <td style="font-style: italic;">${row.date}</td>
+                    <td>${row.lastTradePriceStr}</td>
+                    <td>${row.maxStr}</td>
+                    <td>${row.minStr}</td>
+                    <td>${row.avgPriceStr}</td>
+                    <td style="color: ${changeColor}; font-weight: bold;">
+                        ${row.changeStr} ${changeSymbol}
+                    </td>
+                    <td>${row.volume}</td>
+                    <td>${row.turnoverInBestStr}</td>
+                    <td>${row.totalTurnoverStr}</td>
+                </tr>
+            `;
+            tableBody.insertAdjacentHTML('beforeend', rowHTML);
+        });
+    }
+
+    function fetchStockChartData(issuer, page) {
+        const url = `/api/stock-chart-data?issuer=${encodeURIComponent(issuer)}&page=${encodeURIComponent(page)}`;
+        const loadingDiv = document.getElementById('loading');
+        loadingDiv.style.display = 'block';
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                loadingDiv.style.display = 'none';
+                document.getElementById('stockChart').style.display = 'block';
+                updateStockChart(data.dates, data.avgPrices);
+            })
+            .catch(error => {
+                console.error('Error fetching stock chart data:', error);
+                loadingDiv.innerHTML = '<p style="color: red;">Failed to load Stock Chart.</p>';
+            });
+    }
+
+    function fetchStockChartTotalData(issuer, timePeriod) {
+        const url = `/api/stock-chart-total-data?issuer=${encodeURIComponent(issuer)}&timePeriod=${encodeURIComponent(timePeriod)}&page=${encodeURIComponent(actualPage)}`;
+        const loadingDiv = document.getElementById('loading');
+        loadingDiv.style.display = 'block';
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                loadingDiv.style.display = 'none';
+                document.getElementById('stockChartTotal').style.display = 'block';
+                updateStockChartTotal(data.periodDates, data.periodAvgPrices);
+            })
+            .catch(error => {
+                console.error('Error fetching stock total chart data:', error);
+                loadingDiv.innerHTML = '<p style="color: red;">Failed to load Total Stock Chart.</p>';
+            });
+    }
+
+    function updateTechnicalAnalysisChart(prices, dates, buy, sell){
+        const ctx = document.getElementById('TAStockChart').getContext('2d');
+
+        if (window.TAStockChart && typeof window.TAStockChart.destroy === 'function') {
+            window.TAStockChart.destroy();
+        }
+
+        window.TAStockChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [
+                    {
+                        label: 'Stock Price',
+                        data: prices,
+                        borderColor: '#a172e2',
+                        backgroundColor: 'rgba(0, 0, 255, 0.2)',
+                        fill: true,
+                        borderWidth: 1,
+                    },
+                    {
+                        label: 'Buy Signal',
+                        data: buy,
+                        borderColor: 'green',
+                        backgroundColor: 'rgba(0, 255, 0, 0.2)',
+                        fill: false,
+                        pointStyle: 'circle',
+                        pointRadius: 7,
+                        pointBackgroundColor: 'green',
+                        borderWidth: 0,
+                    },
+                    {
+                        label: 'Sell Signal',
+                        data: sell,
+                        borderColor: 'red',
+                        backgroundColor: 'rgba(255, 0, 0, 0.2)',
+                        fill: false,
+                        pointStyle: 'circle',
+                        pointRadius: 7,
+                        pointBackgroundColor: 'red',
+                        borderWidth: 0,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Stock Price with Buy/Sell Signals'
+                    },
+                    legend: {
+                        position: 'top',
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'category',
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Price'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function updateStockChart(dates, avgPrices) {
+        const ctx = document.getElementById('stockChart').getContext('2d');
+        if (window.stockChart && typeof window.stockChart.destroy === 'function') {
+            window.stockChart.destroy();
+        }
+
+        window.stockChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [{
+                    label: 'Average Price',
+                    data: avgPrices,
+                    borderColor: 'rgb(34,178,178)',
+                    backgroundColor: 'rgba(21,204,2,0.4)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: { responsive: true }
+        });
+    }
+
+    function updateStockChartTotal(periodDates, periodAvgPrices) {
+        const ctxTotal = document.getElementById('stockChartTotal').getContext('2d');
+        if (window.stockChartTotal && typeof window.stockChartTotal.destroy === 'function') {
+            window.stockChartTotal.destroy();
+        }
+
+        window.stockChartTotal = new Chart(ctxTotal, {
+            type: 'line',
+            data: {
+                labels: periodDates,
+                datasets: [{
+                    label: 'Average Price (Total)',
+                    data: periodAvgPrices,
+                    borderColor: 'rgb(192,75,75)',
+                    backgroundColor: 'rgba(192,75,128,0.2)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: { responsive: true }
+        });
+    }
+</script>
+
