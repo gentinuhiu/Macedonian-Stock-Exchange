@@ -1,6 +1,5 @@
 package tech_prototype.service;
 
-
 import org.springframework.stereotype.Service;
 import tech_prototype.model.Issuer;
 import tech_prototype.model.IssuerTemplate;

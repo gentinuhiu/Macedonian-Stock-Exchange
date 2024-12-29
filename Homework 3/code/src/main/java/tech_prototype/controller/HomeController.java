@@ -28,7 +28,10 @@ public class HomeController {
     @GetMapping
     public String index(Model model) throws IOException, InterruptedException {
 
-        scrapingService.scrape();
+        if(allIssuers.isEmpty()) {
+            scrapingService.scrape();
+            return "error";
+        }
 
         model.addAttribute("issuer", "ADIN");
         model.addAttribute("issuers", allIssuers);

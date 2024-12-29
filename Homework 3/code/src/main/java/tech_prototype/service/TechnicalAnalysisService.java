@@ -38,7 +38,7 @@ public class TechnicalAnalysisService {
 
             int exitCode = process.waitFor();
             if (exitCode != 0) {
-                System.err.println("Python script execution failed!");
+                System.err.println("Technical Analysis - Python script execution failed!");
             }
 
         } catch (IOException | InterruptedException e) {

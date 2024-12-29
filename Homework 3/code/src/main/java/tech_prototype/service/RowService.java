@@ -1,9 +1,6 @@
 package tech_prototype.service;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import tech_prototype.model.Issuer;
 import tech_prototype.model.Row;
 import tech_prototype.repository.RowRepository;
 

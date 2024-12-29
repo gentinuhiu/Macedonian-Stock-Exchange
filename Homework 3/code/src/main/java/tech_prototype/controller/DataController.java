@@ -1,15 +1,17 @@
 package tech_prototype.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import tech_prototype.model.Issuer;
 import tech_prototype.model.Row;
 import tech_prototype.model.RowTemplate;
-import tech_prototype.service.IssuerService;
-import tech_prototype.service.RowService;
-import tech_prototype.service.TechnicalAnalysisService;
+import tech_prototype.service.*;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -19,6 +21,8 @@ public class DataController {
     private final RowService rowService;
     private final IssuerService issuerService;
     private final TechnicalAnalysisService technicalAnalysisService;
+    private final FundamentalAnalysisService fundamentalAnalysisService;
+    private final LSTMPredictionService lstmPredictionService;
 
     private Issuer issuerObj;
     private String presentIssuer;
@@ -30,14 +34,20 @@ public class DataController {
     private List<Double> buy;
     private List<Double> sell;
 
-    public DataController(RowService rowService, IssuerService issuerService, TechnicalAnalysisService technicalAnalysisService) {
+    public DataController(RowService rowService, IssuerService issuerService,
+                          TechnicalAnalysisService technicalAnalysisService,
+                          FundamentalAnalysisService fundamentalAnalysisService,
+                          LSTMPredictionService lstmPredictionService) {
         this.rowService = rowService;
         this.issuerService = issuerService;
         this.technicalAnalysisService = technicalAnalysisService;
+        this.fundamentalAnalysisService = fundamentalAnalysisService;
+        this.lstmPredictionService = lstmPredictionService;
 
-        do {
-            this.issuerObj = issuerService.findByName("ADIN"); // GET OR CREATE
-        } while(this.issuerObj == null);
+        this.issuerObj = issuerService.findByName("ADIN");
+
+        if(issuerObj == null)
+            return;
 
         this.presentIssuer = "ADIN";
         this.allRows = rowService.sortRowsByDateStream(issuerObj.getRows());
@@ -147,9 +157,9 @@ public class DataController {
             initializeTechnicalAnalysisData(issuer);
         }
 
-        int differenceCoefficient = calculateDifferenceCoefficient(period);
-        int coefficient = getDateCoefficient(dates.get(dates.size() - 1));
-        int counter = dates.size();
+        int differenceCoefficient = calculateDifferenceCoefficient(period); // kalkulira koeficient za day, week, month
+        int coefficient = getDateCoefficient(dates.get(dates.size() - 1)); // go zema posledniot date
+        int counter = dates.size(); // kalkulira od posledniot date do koeficientot i ja cuva goleminata za nizite
         for(int i = dates.size() - 1; i >= 0; i--){
             int rowCoefficient = getDateCoefficient(dates.get(i));
             if(rowCoefficient < coefficient - differenceCoefficient){
@@ -164,6 +174,40 @@ public class DataController {
                 "buy", buy.subList(counter, buy.size()).toArray(),
                 "sell", sell.subList(counter, sell.size()).toArray()
         );
+    }
+    @GetMapping("/api/predict/{companyCode}")
+    public Map<String, Object> predictStockPrice(@PathVariable String companyCode) throws IOException {
+        String result = lstmPredictionService.predict(companyCode);
+
+        if (result == null || result.trim().isEmpty()) {
+            throw new RuntimeException("No output from Python script");
+        }
+
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> response = mapper.readValue(result, Map.class);
+
+        if (response.containsKey("error")) {
+            throw new RuntimeException("Error from Python script: " + response.get("error"));
+        }
+
+        return response;
+    }
+    @GetMapping("/api/fundamentalAnalysis/{companyCode}")
+    public Map<String, Object> fundamentalAnalysis(@PathVariable String companyCode) throws IOException {
+        String result = fundamentalAnalysisService.analyse(companyCode);
+
+        if (result == null || result.trim().isEmpty()) {
+            throw new RuntimeException("Fundamental Analysis - No output from Python script");
+        }
+
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> response = mapper.readValue(result, Map.class);
+
+        if (response.containsKey("error")) {
+            throw new RuntimeException("Fundamental Analysis - Error from Python script: " + response.get("error"));
+        }
+
+        return response;
     }
     private void initializeTechnicalAnalysisData(String issuer){
         String result = technicalAnalysisService.analyse(issuer);

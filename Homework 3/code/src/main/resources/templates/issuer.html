@@ -67,15 +67,10 @@
     .pagination a:hover, .searchButton:hover {
         background-color: #f0f0f0;
     }
-
-    #issuerTable{
-        display: grid;
-        grid-template-columns: 60% 40%;
-    }
     #charts{
         height: 100%;
         display: grid;
-        grid-auto-rows: 50% 50%;
+        grid-auto-rows: 49.4% 0.2% 49.4%;
     }
     canvas{
         height:100% !important;
@@ -99,13 +94,117 @@
         justify-content: center;
         gap: 0.4em;
     }
+    .headerOptions{
+        padding: 8px;
+    }
+    #technicalAnalysis{
+        background-color: #dddddd5e;
+        height: fit-content;
+        padding-top: 1px;
+        padding-bottom: 30px;
+        margin-top: 30px;
+        box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.3);
+        margin-bottom: 30px;
+        width: 90%;
+        margin-right: auto;
+        margin-left: auto;
+    }
+    .TADiv{
+        width: 80%;
+        height: 600px;
+        margin:20px auto 50px auto;
+    }
+    #header{
+        margin:50px 0 75px 0;
+        display: grid;
+        grid-template-columns: 60% 40%;
+        gap: 15px;
+    }
+    .analysisButtons a{
+        margin: auto 10px;
+    }
+    #LSTMPrediction{
+
+        box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.3);
+        background-color: #dddddd5e;
+        margin: 30px auto;
+        width: 90%;
+        padding: 15px;
+    }
+    #LSTMPrediction canvas{
+        border: 1px solid #ccc; /* Optional: Add border for visibility */
+    }
+    #LSTMPrediction div{
+        display: flex; /* Enables flexbox layout */
+        flex-direction: row; /* Arrange items in a row (default) */
+        justify-content: space-between; /* Optional: Adjust spacing between items */
+        align-items: center; /* Align items vertically */
+        gap: 20px; /* Add space between columns */
+    }
+    #LSTMPrediction div div{
+        width: 49%;
+    }
+    .stock-table{
+        box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.1);
+        background-color: #f4f4f4;
+        padding: 10px;
+    }
+    #fundamentalAnalysis{
+        box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.3);
+        background-color: #dddddd5e;
+        width: 90%;
+        margin-left: auto;
+        margin-right: auto;
+        margin-bottom: 52px;
+        padding: 10px 10px 35px;
+    }
+    #fundamentalAnalysis > div{
+        display: grid;
+        grid-template-columns: 50% 50%;
+        gap: 30px;
+    }
+    #data-table {
+        border-collapse: collapse;
+    }
+
+    #data-table, #data-table th, #data-table td {
+        border: 1px solid #ddd;
+    }
+
+    #data-table th, #data-table td {
+        padding: 10px;
+        text-align: center;
+    }
+
+    .table-container {
+        height: 300px;
+        overflow-y: scroll;
+        width: fit-content;
+        margin: auto;
+    }
+    #data-table th {
+        background-color: #f2f2f2;
+    }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
 
+<div id="header">
 <div id="issuerTable">
-<section class="stock-table">
-    <h2><span th:text="${issuer}"></span> Stock Predictions</h2>
+<section class="stock-table" style="padding-top:30px;">
+    <div class="headerOptions">
+    <h3>Stocks Information for <span th:text="${issuer}"></span></h3>
 
+    <div class="analysisButtons" style="width: 90%;margin:30px auto;">
+    <a href="#technicalAnalysis" class="searchButton">
+        Technical Analysis
+    </a>
+    <a href="#fundamentalAnalysis" class="searchButton">
+        Fundamental Analysis
+    </a>
+    <a href="#LSTMPrediction" class="searchButton">
+        LSTM Prediction
+    </a>
+    </div>
     <form action="/search" method="post">
         <label for="issuer">Select Issuer:</label>
         <select name="issuer" id="issuer" class="selectInput">
@@ -117,6 +216,7 @@
         </select>
         <button type="submit" class="searchButton">Search</button>
     </form>
+    </div>
     <table>
         <thead>
         <tr>
@@ -160,11 +260,13 @@
         </ul>
     </nav>
 </section>
+</div>
     <section id="charts">
         <div id="loading" style="text-align: center; margin: 20px;">
             <p>Loading charts...</p>
         </div>
         <canvas id="stockChart" style="display: none;"></canvas>
+        <hr style="width: 90%;margin: auto;">
         <canvas id="stockChartTotal" style="display: none;"></canvas>
 
         <div class="timePeriodSelector">
@@ -190,8 +292,10 @@
             </label>
         </div>
     </section>
-
-    <div style="width: 80%; margin: auto;">
+</div>
+<div id="technicalAnalysis">
+    <h4>Technical Analysis</h4>
+    <div class="TADiv">
         <canvas id="TAStockChart"></canvas>
 
         <div class="timePeriodSelector">
@@ -210,6 +314,46 @@
         </div>
     </div>
 </div>
+
+    <br>
+
+    <div id="fundamentalAnalysis">
+        <h4>Fundamental Analysis - Natural Language Processing</h4>
+        <div>
+        <div class="chart-container" style="width: 400px;height: 400px;margin:auto;">
+            <canvas id="sentimentChart"></canvas>
+        </div>
+
+        <div class="table-container">
+            <table id="data-table" style="margin: auto;">
+                <thead>
+                <tr>
+                    <th>Scraped Date</th>
+                    <th>Recommendation</th>
+                    <th>Sentiment</th>
+                </tr>
+                </thead>
+                <tbody id="newsTable">
+                </tbody>
+            </table>
+        </div>
+        </div>
+    </div>
+    </div>
+
+    <div id="LSTMPrediction">
+        <h4>LSTM Prediction</h4>
+        <div>
+        <div>
+    <canvas id="lossChart"></canvas>
+        </div>
+        <div>
+    <canvas id="priceChart"></canvas>
+        </div>
+        </div>
+        <h4>Predicted Price: <span id="predictedPrice"></span></h4>
+        <h4>RMSE: <span id="rmse"></span></h4>
+    </div>
 
 
 <script th:inline="javascript">
@@ -522,7 +666,15 @@
                     tension: 0.4
                 }]
             },
-            options: { responsive: true }
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Chart for Table'
+                    }
+                }
+            }
         });
     }
 
@@ -545,8 +697,156 @@
                     tension: 0.4
                 }]
             },
-            options: { responsive: true }
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Chart for a Period of Time'
+                    }
+                }
+            }
         });
     }
 </script>
 
+<script>
+    async function fetchFAData(){
+        const url = `/api/fundamentalAnalysis/${encodeURIComponent(issuer)}`;
+        const response = await fetch(url);
+        const data = await response.json();
+
+        populateFAData(data);
+    }
+    async function fetchLSTMData() {
+        const url = `/api/predict/${encodeURIComponent(issuer)}`;
+        const response = await fetch(url);
+        const data = await response.json();
+
+        var rmse = document.getElementById("rmse");
+        rmse.innerHTML = data.rmse;
+
+        var predictedPrice = document.getElementById("predictedPrice");
+        predictedPrice.innerHTML = data.predicted_price;
+
+        const lossCtx = document.getElementById('lossChart').getContext('2d');
+        new Chart(lossCtx, {
+            type: 'line',
+            data: {
+                labels: Array.from({ length: data.training_loss.length }, (_, i) => i + 1),
+                datasets: [
+                    {
+                        label: 'Training Loss',
+                        data: data.training_loss,
+                        borderColor: 'blue',
+                        fill: false
+                    },
+                    {
+                        label: 'Validation Loss',
+                        data: data.validation_loss,
+                        borderColor: 'red',
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Model Loss'
+                    }
+                }
+            }
+        });
+
+        const priceCtx = document.getElementById('priceChart').getContext('2d');
+        new Chart(priceCtx, {
+            type: 'line',
+            data: {
+                labels: Array.from({ length: data.actual_prices.length }, (_, i) => i + 1),
+                datasets: [
+                    {
+                        label: 'Actual Prices',
+                        data: data.actual_prices,
+                        borderColor: 'blue',
+                        fill: false
+                    },
+                    {
+                        label: 'Predicted Prices',
+                        data: data.predicted_prices,
+                        borderColor: 'red',
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Actual vs Predicted Prices'
+                    }
+                }
+            }
+        });
+    }
+    function populateFAData(data){
+        const recommendations = data.recommendations;
+        const scraped_dates = data.scraped_dates;
+        const sentiments = data.sentiments;
+
+        const tableBody = document.getElementById('newsTable');
+        recommendations.forEach((recommendation, index) => {
+            const row = document.createElement('tr');
+
+            if(recommendation == 'buy'){
+                row.innerHTML = `
+                <td style="font-style: italic;">${scraped_dates[index]}</td>
+                <td style="font-weight:700;color:green;">${recommendation}</td>
+                <td style="font-weight:700;color:green;">${sentiments[index]}</td>
+            `;
+            }
+            else if(recommendation == 'hold'){
+                row.innerHTML = `
+                <td style="font-style: italic;">${scraped_dates[index]}</td>
+                <td style="font-weight:700;color:orange;">${recommendation}</td>
+                <td style="font-weight:700;color:orange;">${sentiments[index]}</td>
+            `;
+            }
+            else if(recommendation == 'sell'){
+                row.innerHTML = `
+                <td style="font-style: italic;">${scraped_dates[index]}</td>
+                <td style="font-weight:700;color:red;">${recommendation}</td>
+                <td style="font-weight:700;color:red;">${sentiments[index]}</td>
+            `;
+            }
+            tableBody.appendChild(row);
+        });
+
+        const sentimentData = {
+            labels: ['Positive', 'Neutral', 'Negative'],
+            datasets: [{
+                label: 'Sentiments',
+                data: [
+                    sentiments.filter(s => s === 'positive').length,
+                    sentiments.filter(s => s === 'neutral').length,
+                    sentiments.filter(s => s === 'negative').length
+                ],
+                backgroundColor: ['#4caf50', '#ffeb3b', '#f44336'],
+                borderColor: ['#388e3c', '#fbc02d', '#d32f2f'],
+                borderWidth: 1
+            }]
+        };
+
+        const sentimentConfig = {
+            type: 'pie',
+            data: sentimentData
+        };
+
+        const sentimentChart = new Chart(document.getElementById('sentimentChart'), sentimentConfig);
+    }
+    fetchTechnicalAnalysisData(issuer, TACheckedRadio)
+    fetchLSTMData();
+    fetchFAData();
+</script>
