@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:latest
+    container_name: tech_prototype-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: genti
+      POSTGRES_DB: stocks
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - stocks-network
+
+  springboot:
+    build: .
+    container_name: tech_prototype-springboot
+    depends_on:
+      - postgres
+    ports:
+      - "9090:9092"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/stocks
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: genti
+      SPRING_DATASOURCE_DRIVER-CLASS-NAME: org.postgresql.Driver
+    volumes:
+      - ./src/main/resources/csv:/app/src/main/resources/csv
+    networks:
+      - stocks-network
+
+volumes:
+  postgres_data:
+
+networks:
+  dians2-network:
+    driver: bridge
