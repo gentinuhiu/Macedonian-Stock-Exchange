@@ -1,32 +1,25 @@
-
-# # Use a lightweight Python base image
-# FROM python:3.9-slim
-
-# # Set the working directory in the container
-# WORKDIR /app
-
-# # Copy project files into the container
-# COPY . .
-
-# # Install project dependencies
-# RUN pip install -r requirements.txt
-
-# # Expose the port the app runs on
-# EXPOSE 5000
-
-# # Command to run the application
-# CMD ["python", "app.py"]
-# Use the official OpenJDK image as the base image
 FROM openjdk:17-jdk-slim
 
-# Set the working directory in the container
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    maven \
+    && apt-get clean
+
 WORKDIR /app
 
-# Copy the application JAR/WAR file into the container
-COPY target/tech_prototype-0.0.1-SNAPSHOT.war /app/my-app.war
+COPY pom.xml /app/
 
-# Expose the port that the application runs on
-EXPOSE 8080
+RUN mvn dependency:resolve
 
-# Run the application
-CMD ["java", "-jar", "/app/my-app.war"]
+COPY src /app/src
+
+COPY requirements.txt /app/
+
+RUN pip3 install -r requirements.txt
+
+RUN mvn clean package -DskipTests
+
+EXPOSE 9090
+
+ENTRYPOINT ["java", "-jar", "/app/target/tech_prototype-0.0.1-SNAPSHOT.jar"]
