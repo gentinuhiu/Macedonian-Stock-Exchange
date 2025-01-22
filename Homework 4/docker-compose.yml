@@ -36,5 +36,5 @@ volumes:
   postgres_data:
 
 networks:
-  dians2-network:
+  stocks-network:
     driver: bridge
